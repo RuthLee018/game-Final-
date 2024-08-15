@@ -1,26 +1,33 @@
 import sys
 from time import sleep
-
 import pygame 
 from settings import Settings
-
-from game_stats import GameStats
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
+from game_states import GameState
+from button import Button
+
 
 class AlienInvasion:
     def __init__(self):
         pygame.init()
         self.clock = pygame.time.Clock()
         self.settings = Settings()#创建Settings类实例
+
+        #游戏启动后处于活动状态
+        self.active = False
+
+        
         
         self.screen = pygame.display.set_mode((1200,800))
         #self.settings.screen_width = self.screen.get_rect().width
         #self.settings.screen_height = self.screen.get_rect().height
         pygame.display.set_caption("Alien Invasion")
 
-        self.stats = GameStats(self)
+        #创建用于存储游戏统计信息的实例
+        self.states = GameState(self)
+
         #创建Ship类实例
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
@@ -29,7 +36,9 @@ class AlienInvasion:
         self._create_fleet()
         #self.bg_color = (100,140,150)#设置背景色
 
-        self.game_active = True
+        #创建按钮
+        self.play_button = Button(self,"Play")
+
 
     def _create_fleet(self):
         alien = Alien(self)
@@ -44,6 +53,26 @@ class AlienInvasion:
                 self._check_keydown_events(event)
             elif event.type == pygame.KEYUP:
                 self._check_keyup_events(event)
+            
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                self._check_play_button(mouse_pos)
+
+
+    def _check_play_button(self,mouse_pos):
+        button_clicked = self.play_button.rect.collidepoint(mouse_pos)
+        if button_clicked and not self.active:
+            self.states.reset_stats()
+            
+            self.active = True
+
+            #清空外星人列表、子弹列表
+            self.bullets.empty()
+            self.aliens.empty()
+            #self.stars.empty()
+
+            #创建一个新的外星人舰队，将飞船放在屏幕底部中间（x,y轴）
+            self.ship.center_ship()
     
 
     def _check_keydown_events(self,event):
@@ -51,10 +80,10 @@ class AlienInvasion:
             self.ship.moving_right = True
         elif event.key == pygame.K_LEFT:
             self.ship.moving_left = True
-        elif event.key == pygame.K_UP:
-            self.ship.moving_up = True
-        elif event.key == pygame.K_DOWN:
-            self.ship.moving_down = True
+        #elif event.key == pygame.K_UP:
+         #   self.ship.moving_up = True
+        #elif event.key == pygame.K_DOWN:
+         #   self.ship.moving_down = True
 
         elif event.key == pygame.K_q:
             sys.exit()
@@ -68,10 +97,10 @@ class AlienInvasion:
             self.ship.moving_right = False
         elif event.key == pygame.K_LEFT:
             self.ship.moving_left = False
-        elif event.key == pygame.K_UP:
-            self.ship.moving_up = False
-        elif event.key == pygame.K_DOWN:
-            self.ship.moving_down = False
+        #elif event.key == pygame.K_UP:
+         #   self.ship.moving_up = False
+        #elif event.key == pygame.K_DOWN:
+         #   self.ship.moving_down = False
 
     def _create_alien(self,x_position,y_position):
         new_alien = Alien(self)
@@ -86,8 +115,8 @@ class AlienInvasion:
         alien_width, alien_height = alien.rect.size
 
         current_x,current_y = alien_width,alien_height
-        while current_y < (self.settings.screen_height -4 * alien_height):
-            while current_x < (self.settings.screen_width -2 * alien_width):
+        while current_y < (self.settings.screen_height -6 * alien_height):
+            while current_x < (self.settings.screen_width -3 * alien_width):
                 self._create_alien(current_x,current_y)
                 current_x += 2 * alien_width
             
@@ -100,6 +129,10 @@ class AlienInvasion:
 
     def _check_bullet_alien_collisions(self):
         collision = pygame.sprite.groupcollide(self.bullets,self.aliens,True,True)
+        file = r"collision.mp3"
+        pygame.mixer.init()
+        pygame.mixer.music.load(file)
+        pygame.mixer.music.play()
         if not self.aliens:
             self.bullets.empty()
             self._create_fleet()
@@ -111,6 +144,7 @@ class AlienInvasion:
                   self.bullets.remove(bullet)
         self._check_bullet_alien_collisions()
 
+
               
     def _update_screen(self):
         self.screen.fill(self.settings.bg_color)
@@ -118,6 +152,9 @@ class AlienInvasion:
             bullet.draw_bullet()
         self.ship.blitme()
         self.aliens.draw(self.screen)
+
+        if not self.active:
+            self.play_button.draw_button()
 
         pygame.display.flip()
 
@@ -134,38 +171,44 @@ class AlienInvasion:
                 self._change_fleet_direction()
                 break
 
+    def _ship_hit(self):
+        if self.states.ship_left > 0:
+            #ship_left减1
+            self.states.ship_left -= 1
+            
+            #清空外星人列表(子弹、星星list)
+            self.aliens.empty()
+            self.bullets.empty()
+            
+            #将飞船放在屏幕底部中央
+            self.ship.center_ship()
+
+            #暂停
+            sleep(0.5)
+        else:
+            self.active = False
+    
     def _update_aliens(self):
         self._check_fleet_edges()
         self.aliens.update()
+        #检测外星人与飞船是否发生碰撞
         if pygame.sprite.spritecollideany(self.ship,self.aliens):
-            self._ship_hit() 
+           # print("w")
+            self._ship_hit()
+        #检测是否有外星人到达屏幕下边缘
         self._check_aliens_bottom()
 
-    def _ship_hit(self):
-        if self.stats.ships_left > 0:
-           self.stats.ships_left -= 1
-
-           self.bullets.empty()
-           self.aliens.empty()
-
-           self._create_fleet()
-           self.ship.center_ship()
-
-           sleep(0.5)
-        else:
-           self.game_active = False
-
-    
     def _check_aliens_bottom(self):
-        for alien in self.aliens.sprites():
+        for alien in self.aliens.sprites():      
             if alien.rect.bottom >= self.settings.screen_height:
+                #如飞船撞到外星人一样处理
                 self._ship_hit()
                 break
-    
+
     def run_game(self):
         while True:
             self._check_events()
-            if self.game_active:
+            if self.active:   
                 self.ship.update()
                 self._update_bullets()                    
                 self._update_aliens()        
