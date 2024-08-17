@@ -5,9 +5,10 @@ from settings import Settings
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
+from star import Star
 from game_states import GameState
 from button import Button
-
+from scoreboard import ScoreBoard
 
 class AlienInvasion:
     def __init__(self):
@@ -25,15 +26,18 @@ class AlienInvasion:
         #self.settings.screen_height = self.screen.get_rect().height
         pygame.display.set_caption("Alien Invasion")
 
-        #创建用于存储游戏统计信息的实例
+        #创建用于存储游戏统计信息的实例,并创建计分牌
         self.states = GameState(self)
+        self.score_board = ScoreBoard(self)
 
         #创建Ship类实例
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.stars = pygame.sprite.Group()
 
         self._create_fleet()
+        self._create_star()        
         #self.bg_color = (100,140,150)#设置背景色
 
         #创建按钮
@@ -44,6 +48,10 @@ class AlienInvasion:
         alien = Alien(self)
         self.aliens.add(alien)
     
+    def _create_star(self):
+        new_star = Star(self)
+        self.stars.add(new_star)
+
     
     def _check_events(self):
         for event in pygame.event.get():
@@ -62,24 +70,29 @@ class AlienInvasion:
     def _check_play_button(self,mouse_pos):
         button_clicked = self.play_button.rect.collidepoint(mouse_pos)
         if button_clicked and not self.active:
-            self.states.reset_stats()
+            self.states.reset_states()
+            self.score_board.prep_score()
+
+            self.score_board.prep_ships()
             
             self.active = True
 
             #清空外星人列表、子弹列表
             self.bullets.empty()
             self.aliens.empty()
-            #self.stars.empty()
+            #elf.stars.empty()
 
             #创建一个新的外星人舰队，将飞船放在屏幕底部中间（x,y轴）
             self.ship.center_ship()
+            #还原初始设置
+            self.settings.initialize_dynamic_settings()
     
 
     def _check_keydown_events(self,event):
         if event.key == pygame.K_RIGHT:
-            self.ship.moving_right = True
-        elif event.key == pygame.K_LEFT:
             self.ship.moving_left = True
+        elif event.key == pygame.K_LEFT:
+            self.ship.moving_right = True
         #elif event.key == pygame.K_UP:
          #   self.ship.moving_up = True
         #elif event.key == pygame.K_DOWN:
@@ -89,14 +102,19 @@ class AlienInvasion:
             sys.exit()
         elif event.key == pygame.K_SPACE:
             self._fire_bullet()
+            """file = r"shot.mp3"
+            pygame.mixer.init()
+            pygame.mixer.music.load(file)
+            pygame.mixer.music.play()"""
+
 
 
 
     def _check_keyup_events(self,event):
         if event.key == pygame.K_RIGHT:
-            self.ship.moving_right = False
-        elif event.key == pygame.K_LEFT:
             self.ship.moving_left = False
+        elif event.key == pygame.K_LEFT:
+            self.ship.moving_right = False
         #elif event.key == pygame.K_UP:
          #   self.ship.moving_up = False
         #elif event.key == pygame.K_DOWN:
@@ -122,20 +140,29 @@ class AlienInvasion:
             
             current_x = alien_width
             current_y += 2 * alien_height
+    
     def _fire_bullet(self):
         new_bullet = Bullet(self)
         self.bullets.add(new_bullet)
         
 
     def _check_bullet_alien_collisions(self):
-        collision = pygame.sprite.groupcollide(self.bullets,self.aliens,True,True)
-        file = r"collision.mp3"
-        pygame.mixer.init()
-        pygame.mixer.music.load(file)
-        pygame.mixer.music.play()
+        #检查是否有子弹击中外星人
+        collision = pygame.sprite.groupcollide(self.bullets,self.aliens,self.settings.bool,True)
+        if collision:
+            self.states.score += self.settings.alien_score 
+            self.score_board.prep_score()
+            self.score_board.check_high_score()
+            file = r"collision.mp3"
+            pygame.mixer.init()
+            pygame.mixer.music.load(file)
+            pygame.mixer.music.play()
+
+        
         if not self.aliens:
             self.bullets.empty()
             self._create_fleet()
+            self.settings.increase_speed()
 
     def _update_bullets(self):
         self.bullets.update()
@@ -144,19 +171,30 @@ class AlienInvasion:
                   self.bullets.remove(bullet)
         self._check_bullet_alien_collisions()
 
+    def _update_star(self):
+        if pygame.sprite.spritecollideany(self.ship,self.stars):
+            #print("s")
+            self.stars.empty()
+            self.settings.bool = False
+
 
               
     def _update_screen(self):
-        self.screen.fill(self.settings.bg_color)
+        #self.screen.fill(self.settings.bg_color)
+        self.screen.blit(self.settings.bg_image,(0,0))#绘制图片
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.ship.blitme()
         self.aliens.draw(self.screen)
+        self.stars.draw(self.screen)
+
+        #显示得分
+        self.score_board.show_score()
 
         if not self.active:
             self.play_button.draw_button()
 
-        pygame.display.flip()
+        pygame.display.flip()#让最近绘制的屏幕可见
 
    
 
@@ -172,13 +210,19 @@ class AlienInvasion:
                 break
 
     def _ship_hit(self):
+        self.settings.bool = True
+        file = r"Game_over.mp3"
+        pygame.mixer.music.load(file)
+        pygame.mixer.music.play()
         if self.states.ship_left > 0:
             #ship_left减1
             self.states.ship_left -= 1
+            self.score_board.prep_ships()  ####
             
             #清空外星人列表(子弹、星星list)
             self.aliens.empty()
             self.bullets.empty()
+            self.stars.empty()
             
             #将飞船放在屏幕底部中央
             self.ship.center_ship()
@@ -212,6 +256,7 @@ class AlienInvasion:
                 self.ship.update()
                 self._update_bullets()                    
                 self._update_aliens()        
+                self._update_star()        
             self._update_screen()        
             #控制帧率
             self.clock.tick(60)
