@@ -3,8 +3,8 @@ class Settings:
     def __init__(self):
         self.screen_width = 1200
         self.screen_height = 800
-        self.bg_color = (0,51,102)
-        self.bg_image = pygame.image.load("images/dream.bmp")
+        self.bg_color = (255,255,0)
+        self.bg_image = pygame.image.load("images/sky.bmp")
 
         #飞船设置
         self.ship_speed = 4.0
@@ -18,23 +18,23 @@ class Settings:
         self.bool = True
 
         #self.alien_speed = 1.5
-        self.fleet_drop_speed = 8.0
+        self.fleet_drop_speed = 5.0
         #1代表向右，-1表示向左
         self.fleet_direction = 1
         self.score_scale = 100
         
         #以何速度加快游戏节奏
-        self.speed_scale = 1.5
+        self.speed_scale = 1.2
         self.initialize_dynamic_settings()
 
     def initialize_dynamic_settings(self):
-        self.alien_speed = 3.0
+        self.alien_speed = 2.0
         #计分设置
-        self.alien_score = 10
+        self.alien_score = 5
 
     def increase_speed(self):
         self.alien_speed *= self.speed_scale 
-        #self.ship_speed *= self.speed_scale 
+        self.ship_speed *= self.speed_scale 
         self.alien_score = int(self.alien_score * self.score_scale)
       
 

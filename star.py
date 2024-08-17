@@ -6,7 +6,7 @@ class Star(Sprite):
         super().__init__()
         self.screen = ai_game.screen
         self.screen_rect = ai_game.screen.get_rect()
-        self.image = pygame.image.load("images/p3.bmp")
+        self.image = pygame.image.load("images/star.png")
         self.rect = self.image.get_rect()
 
         

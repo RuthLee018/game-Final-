@@ -2,6 +2,7 @@ from typing import Any
 import pygame
 import random
 from pygame.sprite import Sprite
+guests = ["images/p1.bmp","images/p2.bmp","images/p4.bmp","images/p5.bmp"]
 
 class Alien(Sprite):
     def __init__(self,ai_game):
@@ -9,7 +10,7 @@ class Alien(Sprite):
         self.screen = ai_game.screen
         self.settings = ai_game.settings
 
-        self.image = pygame.image.load("images/p1.bmp")
+        self.image = pygame.image.load(random.choice(guests))
         self.rect = self.image.get_rect()
 
         self.rect.x = self.rect.width
